@@ -82,6 +82,11 @@ def impute_ros_left(values, is_censored, dist='lognormal'):
     else:
         imputed_vals = predicted
 
+    # Guardrail: Imputed values should not exceed the detection limit (for Left Censoring)
+    # This ensures consistency even if the regression fit is poor.
+    limit_vals = df.loc[df['cens'], 'val']
+    imputed_vals = np.minimum(imputed_vals, limit_vals)
+
     # 6. Robustness: Only replace censored values
     result = df['val'].copy()
     result.loc[df['cens']] = imputed_vals
