@@ -2,6 +2,7 @@ import pandas as pd
 import numpy as np
 from ._ros_left import impute_ros_left
 from ._ros_right import impute_ros_right
+from ._ros_mixed import impute_ros_mixed_heuristic
 from ._parametric import impute_right_conditional, impute_mixed_parametric
 from ._substitution import impute_sub_left, impute_sub_right, impute_sub_mixed
 
@@ -75,7 +76,7 @@ def impute(values, status, method='ros', censoring_type='left', **kwargs):
             }
             imputed_vals = impute_sub_mixed(values, status, left_kwargs=left_kwargs, right_kwargs=right_kwargs)
         elif method == 'ros':
-             raise NotImplementedError("ROS method not implemented for mixed censoring.")
+             imputed_vals = impute_ros_mixed_heuristic(values, status)
         else:
             raise ValueError(f"Unknown method '{method}' for mixed censoring.")
 

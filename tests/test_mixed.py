@@ -57,11 +57,46 @@ class TestMixedImputation(unittest.TestCase):
         obs_orig = df.loc[df['censoring_status'] == 0, 'original_value']
         np.testing.assert_array_equal(obs_imputed, obs_orig)
 
-    def test_mixed_ros_raises(self):
-        values = [1, 2]
-        status = [0, -1]
-        with self.assertRaises(NotImplementedError):
-            impute(values, status, censoring_type='mixed', method='ros')
+    def test_mixed_ros_heuristic(self):
+        # Data inspired by a lognormal distribution
+        np.random.seed(42)
+        true_data = np.random.lognormal(mean=2, sigma=0.5, size=100) # Increased size
+
+        values = true_data.copy()
+        status = np.zeros(100, dtype=int)
+
+        # Left censor low values (< 4)
+        mask_left = values < 4
+        values[mask_left] = 4.0 # LOD
+        status[mask_left] = -1
+
+        # Right censor high values (> 15)
+        mask_right = values > 15
+        values[mask_right] = 15.0 # End of study
+        status[mask_right] = 1
+
+        # Ensure we have enough data
+        if np.sum(status == 0) < 5:
+             self.skipTest("Not enough observed data generated for ROS test")
+
+        df = impute(values, status, censoring_type='mixed', method='ros')
+
+        left_imputed = df.loc[df['censoring_status'] == -1, 'imputed_value']
+        right_imputed = df.loc[df['censoring_status'] == 1, 'imputed_value']
+
+        # Check Order Preservation (This is the critical heuristic check)
+        # The mean of Left Imputed should be < Mean Observed < Mean Right Imputed
+        mean_left = np.mean(left_imputed)
+        mean_obs = np.mean(df.loc[df['censoring_status'] == 0, 'imputed_value'])
+        mean_right = np.mean(right_imputed)
+
+        self.assertLess(mean_left, mean_obs, "Mean Left Imputed should be less than Mean Observed")
+        self.assertLess(mean_obs, mean_right, "Mean Observed should be less than Mean Right Imputed")
+
+        # Basic sanity checks (not strictly bound enforcing as ROS is regression)
+        # At least 50% should be on the correct side of the limit
+        self.assertGreater(np.mean(left_imputed < 4.0), 0.5)
+        self.assertGreater(np.mean(right_imputed > 15.0), 0.5)
 
 if __name__ == '__main__':
     unittest.main()
