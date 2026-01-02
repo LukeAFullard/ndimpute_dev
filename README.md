@@ -12,6 +12,7 @@ The package provides statistical best-practice methods (Regression on Order Stat
 *   **Right Censoring Imputation:**
     *   **Parametric Conditional Mean:** Fits a Weibull distribution to the data (using `scipy.stats.CensoredData`) and imputes censored values with their expected residual life ($E[T | T > C]$).
     *   **Reverse ROS:** Adapts the ROS methodology for right-censored data.
+    *   **Substitution:** Supported strategies are **Value** (Censoring Time) and **Custom Multipliers** (e.g., 1.1x). *Note: Zero and Half strategies are not supported for Right Censoring as they would imply values below the censoring limit.*
 *   **Mixed Censoring Imputation:**
     *   **Parametric:** Handles simultaneous left and right censoring using generalized likelihood fitting.
     *   **Heuristic ROS:** Applies a sequential ROS approach (impute left, then impute right).
@@ -62,6 +63,10 @@ df_param = impute(values, status, method='parametric', censoring_type='right')
 
 # Method 2: Reverse ROS
 df_ros = impute(values, status, method='ros', censoring_type='right')
+
+# Method 3: Substitution (Multiplier)
+df_sub = impute(values, status, method='substitution', censoring_type='right',
+                strategy='multiple', multiplier=1.1)
 ```
 
 ### 3. Mixed Censoring
