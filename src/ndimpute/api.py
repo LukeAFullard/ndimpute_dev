@@ -2,8 +2,8 @@ import pandas as pd
 import numpy as np
 from ._ros_left import impute_ros_left
 from ._ros_right import impute_ros_right
-from ._parametric import impute_right_conditional
-from ._substitution import impute_sub_left, impute_sub_right
+from ._parametric import impute_right_conditional, impute_mixed_parametric
+from ._substitution import impute_sub_left, impute_sub_right, impute_sub_mixed
 
 def impute(values, status, method='ros', censoring_type='left', **kwargs):
     """
@@ -12,11 +12,14 @@ def impute(values, status, method='ros', censoring_type='left', **kwargs):
     Args:
         values (array-like): The data values.
         status (array-like): Indicator.
-            For left-censoring: True if < LOD.
-            For right-censoring: True if censored (event did not happen).
+            For censoring_type='left': True if < LOD.
+            For censoring_type='right': True if censored (> C).
+            For censoring_type='mixed': Integer array (-1: Left, 0: Observed, 1: Right).
         method (str): 'ros', 'parametric', or 'substitution'.
-        censoring_type (str): 'left' or 'right'.
-        **kwargs: Additional arguments for specific methods (e.g., strategy for substitution).
+        censoring_type (str): 'left', 'right', or 'mixed'.
+        **kwargs: Additional arguments for specific methods.
+            - Substitution: 'strategy', 'multiplier'.
+            - Mixed Substitution: 'left_strategy', 'right_strategy', 'left_multiplier', 'right_multiplier'.
 
     Returns:
         pd.DataFrame: A dataframe containing:
@@ -26,7 +29,14 @@ def impute(values, status, method='ros', censoring_type='left', **kwargs):
             - 'is_imputed': Boolean flag.
     """
     values = np.array(values)
-    status = np.array(status, dtype=bool)
+
+    # Status handling depends on type
+    if censoring_type == 'mixed':
+        status = np.array(status, dtype=int)
+        is_imputed = (status != 0)
+    else:
+        status = np.array(status, dtype=bool)
+        is_imputed = status
 
     if censoring_type == 'left':
         if method == 'ros':
@@ -50,12 +60,31 @@ def impute(values, status, method='ros', censoring_type='left', **kwargs):
         else:
             raise ValueError(f"Unknown method '{method}' for right censoring.")
 
+    elif censoring_type == 'mixed':
+        if method == 'parametric':
+            imputed_vals = impute_mixed_parametric(values, status)
+        elif method == 'substitution':
+            # Extract mixed kwargs
+            left_kwargs = {
+                'strategy': kwargs.get('left_strategy', 'half'),
+                'multiplier': kwargs.get('left_multiplier', None)
+            }
+            right_kwargs = {
+                'strategy': kwargs.get('right_strategy', 'value'),
+                'multiplier': kwargs.get('right_multiplier', None)
+            }
+            imputed_vals = impute_sub_mixed(values, status, left_kwargs=left_kwargs, right_kwargs=right_kwargs)
+        elif method == 'ros':
+             raise NotImplementedError("ROS method not implemented for mixed censoring.")
+        else:
+            raise ValueError(f"Unknown method '{method}' for mixed censoring.")
+
     else:
-        raise ValueError("censoring_type must be 'left' or 'right'")
+        raise ValueError("censoring_type must be 'left', 'right', or 'mixed'")
 
     return pd.DataFrame({
         'imputed_value': imputed_vals,
         'original_value': values,
         'censoring_status': status,
-        'is_imputed': status  # For simple censoring, status=True usually implies it needs imputation
+        'is_imputed': is_imputed
     })
