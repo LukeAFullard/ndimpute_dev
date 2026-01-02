@@ -3,8 +3,9 @@ import numpy as np
 from ._ros_left import impute_ros_left
 from ._ros_right import impute_ros_right
 from ._parametric import impute_right_conditional
+from ._substitution import impute_sub_left, impute_sub_right
 
-def impute(values, status, method='ros', censoring_type='left'):
+def impute(values, status, method='ros', censoring_type='left', **kwargs):
     """
     Unified imputation function.
 
@@ -13,8 +14,9 @@ def impute(values, status, method='ros', censoring_type='left'):
         status (array-like): Indicator.
             For left-censoring: True if < LOD.
             For right-censoring: True if censored (event did not happen).
-        method (str): 'ros' or 'parametric'.
+        method (str): 'ros', 'parametric', or 'substitution'.
         censoring_type (str): 'left' or 'right'.
+        **kwargs: Additional arguments for specific methods (e.g., strategy for substitution).
 
     Returns:
         pd.DataFrame: A dataframe containing:
@@ -29,14 +31,22 @@ def impute(values, status, method='ros', censoring_type='left'):
     if censoring_type == 'left':
         if method == 'ros':
             imputed_vals = impute_ros_left(values, status)
+        elif method == 'substitution':
+            strategy = kwargs.get('strategy', 'half')
+            multiplier = kwargs.get('multiplier', None)
+            imputed_vals = impute_sub_left(values, status, strategy=strategy, multiplier=multiplier)
         else:
-            raise NotImplementedError("Parametric imputation not yet implemented for left censoring.")
+            raise NotImplementedError(f"Method '{method}' not implemented for left censoring.")
 
     elif censoring_type == 'right':
         if method == 'ros':
             imputed_vals = impute_ros_right(values, status)
         elif method == 'parametric':
             imputed_vals = impute_right_conditional(values, status)
+        elif method == 'substitution':
+            strategy = kwargs.get('strategy', 'value')
+            multiplier = kwargs.get('multiplier', None)
+            imputed_vals = impute_sub_right(values, status, strategy=strategy, multiplier=multiplier)
         else:
             raise ValueError(f"Unknown method '{method}' for right censoring.")
 
