@@ -31,6 +31,17 @@ class TestSubstitution(unittest.TestCase):
         expected = np.array([10.0, 4.0])
         np.testing.assert_array_equal(df['imputed_value'].values, expected)
 
+    def test_left_sub_multiple(self):
+        values = np.array([10.0, 2.0])
+        status = np.array([False, True]) # <2.0
+
+        # Multiplier 0.5 -> 2.0 * 0.5 = 1.0
+        df = impute(values, status, method='substitution', censoring_type='left',
+                   strategy='multiple', multiplier=0.5)
+
+        expected = np.array([10.0, 1.0])
+        np.testing.assert_array_equal(df['imputed_value'].values, expected)
+
     def test_right_sub_value(self):
         values = np.array([100.0, 50.0])
         status = np.array([False, True]) # 50.0 is censored (>50.0)
@@ -40,11 +51,28 @@ class TestSubstitution(unittest.TestCase):
         expected = np.array([100.0, 50.0])
         np.testing.assert_array_equal(df['imputed_value'].values, expected)
 
+    def test_right_sub_multiple(self):
+        values = np.array([100.0, 10.0])
+        status = np.array([False, True]) # >10.0
+
+        # Multiplier 1.1 -> 10.0 * 1.1 = 11.0
+        df = impute(values, status, method='substitution', censoring_type='right',
+                   strategy='multiple', multiplier=1.1)
+
+        expected = np.array([100.0, 11.0])
+        np.testing.assert_array_equal(df['imputed_value'].values, expected)
+
     def test_invalid_strategy(self):
         values = [1, 2]
         status = [False, True]
         with self.assertRaises(ValueError):
             impute(values, status, method='substitution', censoring_type='left', strategy='invalid')
+
+    def test_missing_multiplier(self):
+        values = [1, 2]
+        status = [False, True]
+        with self.assertRaises(ValueError):
+            impute(values, status, method='substitution', censoring_type='left', strategy='multiple')
 
 if __name__ == '__main__':
     unittest.main()

@@ -33,7 +33,8 @@ def impute(values, status, method='ros', censoring_type='left', **kwargs):
             imputed_vals = impute_ros_left(values, status)
         elif method == 'substitution':
             strategy = kwargs.get('strategy', 'half')
-            imputed_vals = impute_sub_left(values, status, strategy=strategy)
+            multiplier = kwargs.get('multiplier', None)
+            imputed_vals = impute_sub_left(values, status, strategy=strategy, multiplier=multiplier)
         else:
             raise NotImplementedError(f"Method '{method}' not implemented for left censoring.")
 
@@ -44,7 +45,8 @@ def impute(values, status, method='ros', censoring_type='left', **kwargs):
             imputed_vals = impute_right_conditional(values, status)
         elif method == 'substitution':
             strategy = kwargs.get('strategy', 'value')
-            imputed_vals = impute_sub_right(values, status, strategy=strategy)
+            multiplier = kwargs.get('multiplier', None)
+            imputed_vals = impute_sub_right(values, status, strategy=strategy, multiplier=multiplier)
         else:
             raise ValueError(f"Unknown method '{method}' for right censoring.")
 
