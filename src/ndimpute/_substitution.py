@@ -64,3 +64,39 @@ def impute_sub_right(values, is_censored, strategy='value', multiplier=None):
         raise ValueError(f"Unknown strategy '{strategy}' for right censoring substitution. Options: 'value', 'multiple'.")
 
     return imputed
+
+def impute_sub_mixed(values, status, left_kwargs=None, right_kwargs=None):
+    """
+    Imputes mixed-censored data using substitution.
+
+    Args:
+        values (array): Data values.
+        status (array): Status codes (-1: Left, 0: Obs, 1: Right).
+        left_kwargs (dict): Arguments for left substitution (strategy, multiplier).
+        right_kwargs (dict): Arguments for right substitution (strategy, multiplier).
+    """
+    values = np.array(values, dtype=float)
+    status = np.array(status, dtype=int)
+
+    if left_kwargs is None: left_kwargs = {}
+    if right_kwargs is None: right_kwargs = {}
+
+    imputed = values.copy()
+
+    # Left Censored
+    mask_left = (status == -1)
+    if np.any(mask_left):
+        # We pass only the left-censored subset to the helper, BUT helper expects boolean array
+        # simpler to just call helper on the whole array with a constructed boolean mask
+        # and update only the relevant parts?
+        # impute_sub_left returns a full array with imputations.
+        left_imputed = impute_sub_left(values, mask_left, **left_kwargs)
+        imputed[mask_left] = left_imputed[mask_left]
+
+    # Right Censored
+    mask_right = (status == 1)
+    if np.any(mask_right):
+        right_imputed = impute_sub_right(values, mask_right, **right_kwargs)
+        imputed[mask_right] = right_imputed[mask_right]
+
+    return imputed
