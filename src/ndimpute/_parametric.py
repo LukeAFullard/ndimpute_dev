@@ -1,6 +1,6 @@
 import numpy as np
 from scipy.stats import weibull_min, CensoredData
-from scipy.special import gamma, gammaincc
+from scipy.special import gamma, gammaincc, gammainc
 
 def impute_right_conditional(values, is_censored):
     """
@@ -28,42 +28,23 @@ def impute_right_conditional(values, is_censored):
 
     # E[T | T > C] = C + (Integral_C^inf S(t) dt) / S(C)
     # For Weibull: S(t) = exp(-(t/scale)^shape)
-    # Integral = scale/shape * Gamma(1/shape) * gammaincc(1/shape, (C/scale)^shape)
-    # Actually, Integral_0^inf = Mean = scale * Gamma(1 + 1/shape)
-    # Integral_C^inf = Mean * gammaincc(1 + 1/shape, (C/scale)^shape)?
-    # Let's check math carefully.
-    # Mean = scale * Gamma(1 + 1/shape)
-    # Upper Incomplete Gamma function Gamma(s, x) = Integral_x^inf t^(s-1) e^-t dt
-    # Our integral I = Integral_C^inf exp(-(t/scale)^shape) dt
-    # Subst u = (t/scale)^shape => t = scale * u^(1/shape) => dt = scale/shape * u^(1/shape - 1) du
-    # Limits: u_c = (C/scale)^shape to inf
-    # I = Integral_{u_c}^inf e^-u * scale/shape * u^(1/shape - 1) du
-    # I = (scale/shape) * Gamma(1/shape, u_c)
-    # Using scipy.special.gammaincc (Regularized Upper Gamma Q(s,x) = Gamma(s,x)/Gamma(s)):
-    # Gamma(1/shape, u_c) = Gamma(1/shape) * gammaincc(1/shape, u_c)
-    # So I = (scale/shape) * Gamma(1/shape) * gammaincc(1/shape, u_c)
-    # Note: (1/shape) * Gamma(1/shape) = Gamma(1 + 1/shape)
-    # So I = scale * Gamma(1 + 1/shape) * gammaincc(1/shape, u_c)
 
     # Calculate terms
     u_c = (C / scale) ** shape
     mean_unconditional = scale * gamma(1 + 1.0/shape)
 
-    # Note: gammaincc first arg is 'a', second is 'x'
-    # Here a = 1/shape
-    integral_val = scale * (1.0/shape) * gamma(1.0/shape) * gammaincc(1.0/shape, u_c)
-    # Or simply:
-    integral_val = mean_unconditional * gammaincc(1.0/shape, u_c)
+    # Integral of t*f(t) from C to inf
+    # Use gammaincc(1 + 1/k, u_c) for the upper integral
+    integral_upper = mean_unconditional * gammaincc(1.0 + 1.0/shape, u_c)
 
+    # S(C)
     S_C = np.exp(-u_c)
 
-    # Handle potentially small S_C (avoid division by zero)
-    # If S_C is tiny, the conditional mean is essentially C (tail is 0)
-    # or C + epsilon.
     valid_mask = S_C > 1e-15
 
+    # E[T|T>C] = integral_upper / S_C
     expected_val = C.copy()
-    expected_val[valid_mask] = C[valid_mask] + (integral_val[valid_mask] / S_C[valid_mask])
+    expected_val[valid_mask] = integral_upper[valid_mask] / S_C[valid_mask]
 
     imputed[cens] = expected_val
 
@@ -92,34 +73,19 @@ def impute_mixed_parametric(values, status):
     dist = weibull_min(shape, loc=loc, scale=scale)
 
     imputed = data.copy()
+    mean_unconditional = scale * gamma(1 + 1.0/shape)
 
     # Impute Left Censored: E[T | T < L]
-    # This is harder to vectorize purely with gammaincc because it's the lower integral
-    # But scipy.stats.dist.expect might be slow loop.
-    # Can we vectorize?
-    # E[T | T < L] = Integral_0^L t f(t) dt / F(L)
-    # Integral_0^L = Total Mean - Integral_L^inf
-    # Total Mean = scale * Gamma(1+1/k)
-    # Integral_L^inf = scale * Gamma(1+1/k) * gammaincc(1/k, (L/scale)^k)
-    # So Integral_0^L = Total Mean * (1 - gammaincc(...))
-    # Which is Total Mean * gammainc(...) (Lower regularized gamma)
-
     if np.any(mask_left):
         L = data[mask_left]
         u_L = (L / scale) ** shape
         F_L = 1.0 - np.exp(-u_L) # CDF
 
-        # Mean * gammainc (lower regularized)
-        mean_unconditional = scale * gamma(1 + 1.0/shape)
-        # Using gammainc (lower) which corresponds to integral from 0 to x
-        # Note: gammainc vs gammaincc. 'inc' is lower, 'incc' is upper. Sum is 1.
-        # However, the term inside is t*f(t).
-        # We established I_upper = Mean * gammaincc(1/k, u)
-        # So I_lower = Mean * gammainc(1/k, u)
-        # Actually check parameter a=1/k again? Yes from deriv above.
-
-        from scipy.special import gammainc
-        integral_lower = mean_unconditional * gammainc(1.0/shape, u_L)
+        # Integral of t*f(t) from 0 to L
+        # Use gammainc(1 + 1/k, u_L) for lower integral
+        # Note: gammainc vs gammaincc. 'inc' is lower regularized.
+        # Parameter 'a' must be 1 + 1/shape for the first moment.
+        integral_lower = mean_unconditional * gammainc(1.0 + 1.0/shape, u_L)
 
         valid_mask = F_L > 1e-15
         vals = L.copy()
@@ -129,18 +95,18 @@ def impute_mixed_parametric(values, status):
         imputed[mask_left] = vals
 
     # Impute Right Censored: E[T | T > R]
-    # Reuse vectorization logic from right_conditional
     if np.any(mask_right):
         R = data[mask_right]
         u_R = (R / scale) ** shape
         S_R = np.exp(-u_R)
 
-        mean_unconditional = scale * gamma(1 + 1.0/shape)
-        integral_upper = mean_unconditional * gammaincc(1.0/shape, u_R)
+        # Integral of t*f(t) from R to inf
+        # Use gammaincc(1 + 1/k, u_R) for upper integral
+        integral_upper = mean_unconditional * gammaincc(1.0 + 1.0/shape, u_R)
 
         valid_mask = S_R > 1e-15
         vals = R.copy()
-        vals[valid_mask] = R[valid_mask] + (integral_upper[valid_mask] / S_R[valid_mask])
+        vals[valid_mask] = integral_upper[valid_mask] / S_R[valid_mask]
 
         imputed[mask_right] = vals
 
