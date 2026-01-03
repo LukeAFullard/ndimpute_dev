@@ -19,7 +19,7 @@ def impute(values, status, method='ros', censoring_type='left', **kwargs):
         method (str): 'ros', 'parametric', or 'substitution'.
         censoring_type (str): 'left', 'right', or 'mixed'.
         **kwargs: Additional arguments for specific methods.
-            - ROS: 'dist' ('lognormal' (default), 'normal').
+            - ROS: 'dist' ('lognormal' (default), 'normal'), 'plotting_position' ('kaplan-meier' (default), 'simple').
             - Substitution: 'strategy', 'multiplier'.
             - Mixed Substitution: 'left_strategy', 'right_strategy', 'left_multiplier', 'right_multiplier'.
 
@@ -41,10 +41,11 @@ def impute(values, status, method='ros', censoring_type='left', **kwargs):
         is_imputed = status
 
     dist = kwargs.get('dist', 'lognormal')
+    plotting_position = kwargs.get('plotting_position', 'kaplan-meier')
 
     if censoring_type == 'left':
         if method == 'ros':
-            imputed_vals = impute_ros_left(values, status, dist=dist)
+            imputed_vals = impute_ros_left(values, status, dist=dist, plotting_position=plotting_position)
         elif method == 'substitution':
             strategy = kwargs.get('strategy', 'half')
             multiplier = kwargs.get('multiplier', None)
@@ -54,7 +55,7 @@ def impute(values, status, method='ros', censoring_type='left', **kwargs):
 
     elif censoring_type == 'right':
         if method == 'ros':
-            imputed_vals = impute_ros_right(values, status, dist=dist)
+            imputed_vals = impute_ros_right(values, status, dist=dist, plotting_position=plotting_position)
         elif method == 'parametric':
             imputed_vals = impute_right_conditional(values, status)
         elif method == 'substitution':

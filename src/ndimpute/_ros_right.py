@@ -1,6 +1,6 @@
 from ._ros_left import impute_ros_left
 
-def impute_ros_right(values, is_censored, dist='lognormal'):
+def impute_ros_right(values, is_censored, dist='lognormal', plotting_position='kaplan-meier'):
     """
     Imputes right-censored data using Reverse ROS.
     """
@@ -20,7 +20,7 @@ def impute_ros_right(values, is_censored, dist='lognormal'):
         inv_values = 1.0 / values
 
         # Call Left ROS
-        imputed_inv = impute_ros_left(inv_values, is_censored, dist='lognormal')
+        imputed_inv = impute_ros_left(inv_values, is_censored, dist='lognormal', plotting_position=plotting_position)
 
         # Invert back
         return 1.0 / imputed_inv
@@ -28,5 +28,5 @@ def impute_ros_right(values, is_censored, dist='lognormal'):
     else:
         # Normal distribution -> flip sign
         flipped_values = -values
-        imputed_flipped = impute_ros_left(flipped_values, is_censored, dist='normal')
+        imputed_flipped = impute_ros_left(flipped_values, is_censored, dist='normal', plotting_position=plotting_position)
         return -imputed_flipped

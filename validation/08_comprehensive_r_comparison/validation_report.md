@@ -37,6 +37,9 @@ This test quantifies the difference between the "Simple" ranking logic (used in 
 | **Normal** | Single | 0.77 | **Systematic Shift.** Similar to Lognormal, but on a linear scale. |
 | **Normal** | Multiple | 1.92 | **Significant Improvement.** |
 
+**Validation of Legacy Mode (`plotting_position='simple'`):**
+We also verified that running `ndimpute(..., plotting_position='simple')` recovers the benchmark logic closely (MAE < 0.03 for single limits), confirming that the implementation allows backward compatibility for comparison. Remaining deviations are due to `ndimpute`'s safety guardrails (clamping imputations to $\le LOD$), which the raw benchmark lacks.
+
 ## 6. Visual Evidence
 
 ### Error Heatmap
