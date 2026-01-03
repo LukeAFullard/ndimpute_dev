@@ -42,8 +42,9 @@ def impute_ros_left(values, is_censored, dist='lognormal'):
 
     # Model: log(val) = intercept + slope * Z
     if dist == 'lognormal':
-        # Ensure values are positive
-        if (df.loc[~df['cens'], 'val'] <= 0).any():
+        # Ensure ALL values are positive (observed AND censoring limits)
+        # because "censored at -1" is invalid for lognormal support (0, inf).
+        if (df['val'] <= 0).any():
              raise ValueError("Values must be positive for lognormal distribution.")
         y_obs = np.log(df.loc[~df['cens'], 'val'])
     else:
