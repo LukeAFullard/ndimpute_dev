@@ -4,23 +4,16 @@ import matplotlib.pyplot as plt
 import os
 
 def analyze():
-    df = pd.read_csv("suite_results.csv")
+    # Read the V2 results from the latest run
+    df = pd.read_csv("suite_results_v2.csv")
 
     # 1. Summary Table
     summary = df.groupby(['Dist', 'Limit'])['MAE'].mean().reset_index()
-    print("\n--- Mean MAE by Scenario ---")
+    print("\n--- Mean MAE by Scenario (Corrected) ---")
     print(summary)
 
     # 2. Heatmap: MAE by N vs Censoring Level (for Lognormal Single)
-    # Filter for Lognormal Single
-    subset = df[(df['Dist'] == 'lognormal') & (df['Limit'] == 'single')].copy()
-
-    # Extract params from Scenario filename if needed, but we didn't save them explicit columns
-    # We need to parse filename again or rely on order?
-    # Better to parse from filename column
-
     def extract_params(row):
-        # benchmark_lognormal_n200_cens0.2_single.csv
         parts = row['Scenario'].split('_')
         n = int(parts[2].replace('n', ''))
         cens = float(parts[3].replace('cens', ''))
@@ -28,8 +21,8 @@ def analyze():
 
     df[['N', 'Censoring']] = df.apply(extract_params, axis=1)
 
-    # Heatmap Data
-    heatmap_data = df[df['Dist'] == 'lognormal'].pivot_table(
+    # Heatmap Data (Lognormal Single)
+    heatmap_data = df[(df['Dist'] == 'lognormal') & (df['Limit'] == 'single')].pivot_table(
         index='Censoring', columns='N', values='MAE', aggfunc='mean'
     )
 
