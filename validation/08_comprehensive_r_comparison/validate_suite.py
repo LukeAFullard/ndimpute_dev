@@ -9,7 +9,7 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../../s
 from ndimpute import impute
 
 def run_suite():
-    print("Running Comprehensive Validation Suite")
+    print("Running Comprehensive Validation Suite (Updated)")
 
     # Find all benchmarks
     base_dir = os.path.dirname(__file__)
@@ -25,7 +25,7 @@ def run_suite():
         filename = os.path.basename(filepath)
         # Parse filename: benchmark_lognormal_n50_cens0.5_single.csv
         parts = filename.replace("benchmark_", "").replace(".csv", "").split("_")
-        dist = parts[0]
+        dist = parts[0] # 'lognormal' or 'normal'
         # n = parts[1] (e.g. n50)
         # cens = parts[2] (e.g. cens0.5)
         limit_type = parts[3]
@@ -36,7 +36,7 @@ def run_suite():
         status = df['censoring_status'].astype(bool).values
         r_imputed = df['r_imputed'].values
 
-        # Run ndimpute
+        # Run ndimpute with correct distribution!
         try:
             df_py = impute(values, status, method='ros', censoring_type='left', dist=dist)
             py_imputed = df_py['imputed_value'].values
@@ -56,7 +56,7 @@ def run_suite():
                 'MAE': mae,
                 'Status': 'PASS' # We just record metrics for now
             })
-            print(f"Processed {filename}: MAE={mae:.4f}")
+            print(f"Processed {filename} (dist={dist}): MAE={mae:.4f}")
 
         except Exception as e:
             print(f"Failed {filename}: {e}")
@@ -71,8 +71,8 @@ def run_suite():
     print(df_res.to_string())
 
     # Export results
-    df_res.to_csv("suite_results.csv", index=False)
-    print("\nSaved suite_results.csv")
+    df_res.to_csv("suite_results_v2.csv", index=False)
+    print("\nSaved suite_results_v2.csv")
 
 if __name__ == "__main__":
     run_suite()

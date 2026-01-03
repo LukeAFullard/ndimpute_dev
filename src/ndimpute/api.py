@@ -19,6 +19,7 @@ def impute(values, status, method='ros', censoring_type='left', **kwargs):
         method (str): 'ros', 'parametric', or 'substitution'.
         censoring_type (str): 'left', 'right', or 'mixed'.
         **kwargs: Additional arguments for specific methods.
+            - ROS: 'dist' ('lognormal' (default), 'normal').
             - Substitution: 'strategy', 'multiplier'.
             - Mixed Substitution: 'left_strategy', 'right_strategy', 'left_multiplier', 'right_multiplier'.
 
@@ -39,9 +40,11 @@ def impute(values, status, method='ros', censoring_type='left', **kwargs):
         status = np.array(status, dtype=bool)
         is_imputed = status
 
+    dist = kwargs.get('dist', 'lognormal')
+
     if censoring_type == 'left':
         if method == 'ros':
-            imputed_vals = impute_ros_left(values, status)
+            imputed_vals = impute_ros_left(values, status, dist=dist)
         elif method == 'substitution':
             strategy = kwargs.get('strategy', 'half')
             multiplier = kwargs.get('multiplier', None)
@@ -51,7 +54,7 @@ def impute(values, status, method='ros', censoring_type='left', **kwargs):
 
     elif censoring_type == 'right':
         if method == 'ros':
-            imputed_vals = impute_ros_right(values, status)
+            imputed_vals = impute_ros_right(values, status, dist=dist)
         elif method == 'parametric':
             imputed_vals = impute_right_conditional(values, status)
         elif method == 'substitution':

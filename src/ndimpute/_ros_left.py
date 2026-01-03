@@ -10,26 +10,16 @@ def impute_ros_left(values, is_censored, dist='lognormal'):
     Args:
         values (array): Observed values (LOD for censored).
         is_censored (bool array): True if value is censored (<).
+        dist (str): Distribution assumption ('lognormal' or 'normal').
     """
     df = pd.DataFrame({'val': values, 'cens': is_censored})
     n = len(df)
 
     # 1. Sort data
-    # Standard sorting places smaller values first.
-    # We maintain a stable sort for index recovery.
     df = df.sort_values('val')
 
     # 2. Compute Plotting Positions (Weibull Method: rank / (n+1))
-    # This assumes that censored values effectively occupy the lower ranks
-    # relative to the observed values (typical for single detection limit).
-    # For multiple detection limits, NADA uses Kaplan-Meier to adjust these ranks.
-    # Here, we use a simple rank-based approach which is robust for single limits
-    # and a reasonable approximation for mixed limits in this "Simple" implementation.
-
-    # We assign ranks 1 to N
     df['rank'] = np.arange(1, n + 1)
-
-    # Weibull Plotting Position
     df['pp'] = df['rank'] / (n + 1)
 
     # 3. Z-scores
@@ -40,15 +30,16 @@ def impute_ros_left(values, is_censored, dist='lognormal'):
     if n_unc < 2:
          raise ValueError("Too few uncensored observations to fit regression.")
 
-    # Model: log(val) = intercept + slope * Z
+    # Model: transform(val) = intercept + slope * Z
     if dist == 'lognormal':
-        # Ensure ALL values are positive (observed AND censoring limits)
-        # because "censored at -1" is invalid for lognormal support (0, inf).
+        # Ensure values are positive
         if (df['val'] <= 0).any():
              raise ValueError("Values must be positive for lognormal distribution.")
         y_obs = np.log(df.loc[~df['cens'], 'val'])
-    else:
+    elif dist == 'normal':
         y_obs = df.loc[~df['cens'], 'val']
+    else:
+        raise ValueError(f"Unknown distribution '{dist}'. Supported: 'lognormal', 'normal'.")
 
     x_obs = df.loc[~df['cens'], 'z']
 
